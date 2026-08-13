@@ -136,8 +136,10 @@ let init ~id ~run_on ?extra_style ?inline_style worker this =
       run_on;
     }
   in
+  let doc = String.trim (Webcomponent.text_content this) in
+  Editor.set_source cm doc;
+  Client.fmt ~id editor.worker doc;
   Editor.on_change cm (fun () -> invalidate_after ~editor);
-  set_source_from_html editor this;
 
   Merlin_ext.set_context merlin (fun () -> pre_source editor);
   Editor.configure_merlin cm (fun () -> Merlin_ext.extensions merlin_worker);
