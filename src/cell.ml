@@ -159,7 +159,11 @@ let init ~id ~run_on ?extra_style ?inline_style worker this =
           ignore
             (Jv.call Jv.global "xOcamlOnShiftEnter"
                [| Jv.of_int editor.id |])));
-      ("Ctrl-Enter", (fun () -> run editor)) ];
+      ("Ctrl-Enter", (fun () -> run editor));
+      ("Escape", (fun () ->
+          ignore
+            (Jv.call Jv.global "xOcamlOnEscape"
+               [| Jv.of_int editor.id |]))) ];
 
   editor
 
