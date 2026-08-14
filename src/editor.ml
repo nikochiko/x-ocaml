@@ -5,6 +5,7 @@ type t = {
   merlin_comp : Code_mirror.Compartment.t;
   mutable merlin_extension : unit -> Code_mirror.Extension.t list;
   changes : Code_mirror.Compartment.t;
+  keymap_comp : Code_mirror.Compartment.t;
   mutable previous_lines : int;
   mutable current_doc : string;
   mutable messages : (int * Brr.El.t list) list;
@@ -87,6 +88,7 @@ let make parent =
   let messages = Code_mirror.Compartment.make () in
   let lines = Code_mirror.Compartment.make () in
   let merlin = Code_mirror.Compartment.make () in
+  let keymap = Code_mirror.Compartment.make () in
   let extensions =
     [|
       basic_setup;
@@ -95,6 +97,7 @@ let make parent =
       Code_mirror.Compartment.of' messages [];
       Code_mirror.Compartment.of' changes [];
       Code_mirror.Compartment.of' merlin [];
+      Code_mirror.Compartment.of' keymap [];
     |]
   in
   let config = State.Config.create ~doc:Jstr.empty ~extensions () in
@@ -111,6 +114,7 @@ let make parent =
     merlin_comp = merlin;
     merlin_extension = (fun () -> []);
     changes;
+    keymap_comp = keymap;
   }
 
 let set_current_doc t new_doc =
@@ -159,3 +163,18 @@ let add_message t loc msg = set_messages t ((loc, msg) :: t.messages)
 let set_source t doc =
   set_current_doc t doc;
   Code_mirror.Editor.View.set_doc t.view (Jstr.of_string doc)
+
+let add_keymap t bindings =
+  let keymap_facet = Jv.get Jv.global "__CM__keymap" in
+  let make_binding (key, handler) =
+    Jv.obj
+      [| ("key", Jv.of_string key);
+         ("run", Jv.callback ~arity:1 (fun _args -> handler (); Jv.of_bool true)) |]
+  in
+  let jv_bindings = Array.of_list (List.map make_binding bindings) in
+  let ext =
+    Jv.call keymap_facet "of" [| Jv.of_jv_array jv_bindings |]
+    |> Code_mirror.Extension.of_jv
+  in
+  Code_mirror.Editor.View.dispatch t.view
+    (Code_mirror.Compartment.reconfigure t.keymap_comp [ ext ])

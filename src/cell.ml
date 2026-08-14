@@ -153,6 +153,14 @@ let init ~id ~run_on ?extra_style ?inline_style worker this =
     Ev.listen Ev.click (fun _ev -> run editor) (El.as_target run_btn)
   in
 
+  Editor.add_keymap cm
+    [ ("Shift-Enter", (fun () ->
+          run editor;
+          ignore
+            (Jv.call Jv.global "xOcamlOnShiftEnter"
+               [| Jv.of_int editor.id |])));
+      ("Ctrl-Enter", (fun () -> run editor)) ];
+
   editor
 
 let set_source editor doc =
@@ -190,3 +198,41 @@ let receive_merlin t msg =
     (Merlin_ext.fix_answer ~pre:(pre_source t) ~doc:(Editor.source t.cm) msg)
 
 let loadable t = t.run_on = `Load
+
+let next t = t.next
+
+let remove t =
+  let next = t.next in
+  (match t.prev with None -> () | Some p -> p.next <- next);
+  (match next with None -> () | Some n -> n.prev <- t.prev);
+  let prev = t.prev in
+  t.prev <- None;
+  t.next <- None;
+  match next with
+  | None -> ()
+  | Some n ->
+    (match prev with
+     | None -> Editor.set_previous_lines n.cm 0
+     | Some p -> refresh_lines_from ~editor:p);
+    invalidate_from ~editor:n
+
+let insert_after ~after ~next new_cell =
+  (* Disconnect new_cell from wherever connectedCallback placed it *)
+  (match new_cell.prev with None -> () | Some p -> p.next <- new_cell.next);
+  (match new_cell.next with None -> () | Some n -> n.prev <- new_cell.prev);
+  new_cell.prev <- None;
+  new_cell.next <- None;
+  (* Disconnect next from after *)
+  (match after with None -> () | Some a -> a.next <- None);
+  (match next with None -> () | Some n -> n.prev <- None);
+  (* Link: after -> new_cell -> next *)
+  new_cell.prev <- after;
+  (match after with
+   | None -> Editor.set_previous_lines new_cell.cm 0
+   | Some a -> a.next <- Some new_cell);
+  new_cell.next <- next;
+  (match next with None -> () | Some n -> n.prev <- Some new_cell);
+  (* Refresh line numbers from the point of change *)
+  refresh_lines_from ~editor:(match after with None -> new_cell | Some a -> a);
+  (* Invalidate subsequent cells *)
+  match next with None -> () | Some n -> invalidate_from ~editor:n

@@ -17,3 +17,6 @@ val set_prev : prev:t option -> t -> unit
 val receive_merlin : t -> Protocol.answer -> unit
 val loadable : t -> bool
 val run : t -> unit
+val remove : t -> unit
+val next : t -> t option
+val insert_after : after:t option -> next:t option -> t -> unit

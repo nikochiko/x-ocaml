@@ -1,4 +1,4 @@
-let all : Cell.t list ref = ref []
+let all = Notebook_ops.all
 let find_by_id id = List.find (fun t -> Cell.id t = id) !all
 
 let current_script =
@@ -120,7 +120,8 @@ let _ =
         in
         Option.value ~default run_on
   in
-  let id = List.length !all in
+  let id = !Notebook_ops.id_counter in
+  incr Notebook_ops.id_counter;
   let cell_id =
     match Webcomponent.get_attribute this "id" with
     | Some s -> s
@@ -131,6 +132,8 @@ let _ =
              [| Jv.of_string "id"; Jv.of_string s |]);
         s
   in
+  ignore (Jv.call (Jv.repr this) "setAttribute"
+    [| Jv.of_string "data-ocaml-id"; Jv.of_string (string_of_int id) |]);
   let cached = query_cached_output cell_id in
   let has_cache = cached <> [] in
   let editor =
@@ -141,3 +144,5 @@ let _ =
   Cell.set_prev ~prev editor;
   if List.for_all Cell.loadable !all then Cell.run editor;
   ()
+
+let () = Notebook_ops.setup ()
