@@ -81,7 +81,12 @@ let query_cached_output cell_id =
       | Some s -> s
       | None -> "meta"
     in
-    let content = Jstr.to_string (Jv.to_jstr (Jv.get node "innerHTML")) in
+    (* Use innerHTML for html type (preserves markup), textContent for others
+       (decodes HTML entities like &lt; back to < that were escaped on save) *)
+    let content =
+      let prop = if typ = "html" then "innerHTML" else "textContent" in
+      Jstr.to_string (Jv.to_jstr (Jv.get node prop))
+    in
     let output =
       match typ with
       | "stdout" -> X_protocol.Stdout content

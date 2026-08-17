@@ -188,7 +188,12 @@ let render_message msg =
   El.pre ~at:[ At.class' (Jstr.of_string ("caml_" ^ kind)) ] [ text ]
 
 let add_message t loc msg =
-  Editor.add_message t.cm loc (List.map render_message msg)
+  let els = List.map render_message msg in
+  List.iter (fun el ->
+    ignore (Jv.call (El.to_jv el) "setAttribute"
+      [| Jv.of_string "data-loc"; Jv.of_string (string_of_int loc) |]))
+    els;
+  Editor.add_message t.cm loc els
 
 let completed_run ed msg =
   (if msg <> [] then
